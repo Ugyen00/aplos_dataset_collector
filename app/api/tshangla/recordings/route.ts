@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
-  const { sentence_id, speaker_name, translated_text, audio_url, duration_ms } = await req.json()
+  const { sentence_id, speaker_name, english_sentence, translated_text, audio_url, duration_ms } = await req.json()
 
   if (!sentence_id || !speaker_name || !translated_text || !audio_url) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('tshangla_recordings')
-    .insert({ sentence_id, speaker_name, translated_text, audio_url, duration_ms })
+    .insert({ sentence_id, speaker_name, english_sentence, translated_text, audio_url, duration_ms })
     .select()
     .single()
 

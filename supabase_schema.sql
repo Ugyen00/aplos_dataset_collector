@@ -69,6 +69,7 @@ create table if not exists kurtap_recordings (
   id uuid primary key default gen_random_uuid(),
   sentence_id integer references english_sentences(id) on delete cascade,
   speaker_name text not null,
+  english_sentence text,
   translated_text text not null,
   audio_url text not null,
   duration_ms integer,
@@ -80,11 +81,16 @@ create table if not exists tshangla_recordings (
   id uuid primary key default gen_random_uuid(),
   sentence_id integer references english_sentences(id) on delete cascade,
   speaker_name text not null,
+  english_sentence text,
   translated_text text not null,
   audio_url text not null,
   duration_ms integer,
   created_at timestamptz default now()
 );
+
+-- Migration: add english_sentence column if tables already exist
+alter table kurtap_recordings add column if not exists english_sentence text;
+alter table tshangla_recordings add column if not exists english_sentence text;
 
 -- Indexes for fast lookup
 create index if not exists kurtap_recordings_sentence_id_idx on kurtap_recordings(sentence_id);

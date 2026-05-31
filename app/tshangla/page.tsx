@@ -183,6 +183,7 @@ export default function TshanglaRecorderPage() {
         body: JSON.stringify({
           sentence_id: sentence.id,
           speaker_name: speaker,
+          english_sentence: sentence.sentence,
           translated_text: translatedText.trim(),
           audio_url: upData.url,
           duration_ms: duration,
