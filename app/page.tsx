@@ -291,6 +291,15 @@ export default function RecorderPage() {
     fetchNextSentence(speaker)
   }
 
+  const logout = () => {
+    localStorage.removeItem('dzo_showSelector')
+    localStorage.removeItem('dzo_speaker')
+    setSpeaker('')
+    setSpeakerInput('')
+    setShowSelector(true)
+    setSentence(null)
+  }
+
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -422,6 +431,12 @@ export default function RecorderPage() {
             <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
             <span className="text-neutral-300 text-xs font-medium max-w-[60px] sm:max-w-[120px] truncate">{speaker}</span>
           </div>
+          <button
+            onClick={logout}
+            className="text-neutral-500 hover:text-white text-xs transition-colors bg-transparent border-0 cursor-pointer"
+          >
+            Sign out
+          </button>
         </div>
       </header>
 
