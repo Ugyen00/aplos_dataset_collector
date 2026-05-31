@@ -113,6 +113,7 @@ export default function RecorderPage() {
   const [recordingTime, setRecordingTime] = useState(0)
   const [loading, setLoading] = useState(false)
   const [skipped, setSkipped] = useState(0)
+  const [skippedIds, setSkippedIds] = useState<number[]>([])
 
   const audioCtxRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
@@ -122,11 +123,12 @@ export default function RecorderPage() {
   const startTimeRef = useRef<number>(0)
   const streamRef = useRef<MediaStream | null>(null)
 
-  const fetchNextSentence = useCallback(async (spk: string) => {
+  const fetchNextSentence = useCallback(async (spk: string, skipIds: number[] = []) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/sentences?speaker=${encodeURIComponent(spk)}`)
+      const skipParam = skipIds.length > 0 ? `&skip_ids=${skipIds.join(',')}` : ''
+      const res = await fetch(`/api/sentences?speaker=${encodeURIComponent(spk)}${skipParam}`)
       const data = await res.json()
       if (data.done) {
         setSentence(null)
@@ -287,17 +289,23 @@ export default function RecorderPage() {
   }
 
   const skip = () => {
+    if (!sentence) return
+    const newSkippedIds = [...skippedIds, sentence.id]
+    setSkippedIds(newSkippedIds)
+    localStorage.setItem('dzo_skipped_ids', JSON.stringify(newSkippedIds))
     setSkipped((s) => s + 1)
-    fetchNextSentence(speaker)
+    fetchNextSentence(speaker, newSkippedIds)
   }
 
   const logout = () => {
     localStorage.removeItem('dzo_showSelector')
     localStorage.removeItem('dzo_speaker')
+    localStorage.removeItem('dzo_skipped_ids')
     setSpeaker('')
     setSpeakerInput('')
     setShowSelector(true)
     setSentence(null)
+    setSkippedIds([])
   }
 
   useEffect(() => {
@@ -319,12 +327,14 @@ export default function RecorderPage() {
   useEffect(() => {
     const savedSelector = localStorage.getItem('dzo_showSelector')
     const savedSpeaker = localStorage.getItem('dzo_speaker')
+    const savedSkippedIds: number[] = JSON.parse(localStorage.getItem('dzo_skipped_ids') || '[]')
+    setSkippedIds(savedSkippedIds)
     if (savedSelector === 'false') {
       setShowSelector(false)
       if (savedSpeaker) {
         setSpeaker(savedSpeaker)
         setSpeakerInput(savedSpeaker)
-        fetchNextSentence(savedSpeaker)
+        fetchNextSentence(savedSpeaker, savedSkippedIds)
         fetchCount(savedSpeaker)
       }
     }

@@ -4,29 +4,43 @@ import { supabase } from '@/lib/supabase'
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const speaker = searchParams.get('speaker') || ''
-  const after = searchParams.get('after') // sentence id to get next after
+  const skipIdsParam = searchParams.get('skip_ids') || ''
 
-  // Get a sentence that this speaker hasn't recorded yet
-  // Strategy: find recorded sentence IDs by this speaker, then get one that's not in that set
+  // Exclude sentences recorded by ANY speaker to prevent cross-user repeats
   const { data: recorded } = await supabase
     .from('recordings')
     .select('sentence_id')
-    .eq('speaker_name', speaker)
 
   const recordedIds = (recorded || []).map((r: { sentence_id: number }) => r.sentence_id)
+
+  const skipIds = skipIdsParam
+    ? skipIdsParam.split(',').map(Number).filter((n) => !isNaN(n) && n > 0)
+    : []
+
+  const excludeIds = [...new Set([...recordedIds, ...skipIds])]
+
+  // Get count of eligible sentences for random selection
+  let countQuery = supabase.from('sentences').select('*', { count: 'exact', head: true })
+  if (excludeIds.length > 0) {
+    countQuery = countQuery.not('id', 'in', `(${excludeIds.join(',')})`)
+  }
+
+  const { count, error: countError } = await countQuery
+  if (countError) return NextResponse.json({ error: countError.message }, { status: 500 })
+  if (!count || count === 0) {
+    return NextResponse.json({ done: true, message: 'All sentences recorded!' })
+  }
+
+  const randomOffset = Math.floor(Math.random() * count)
 
   let query = supabase
     .from('sentences')
     .select('id, sentence, char_count, token_count')
     .order('id', { ascending: true })
-    .limit(1)
+    .range(randomOffset, randomOffset)
 
-  if (recordedIds.length > 0) {
-    query = query.not('id', 'in', `(${recordedIds.join(',')})`)
-  }
-
-  if (after) {
-    query = query.gt('id', parseInt(after))
+  if (excludeIds.length > 0) {
+    query = query.not('id', 'in', `(${excludeIds.join(',')})`)
   }
 
   const { data, error } = await query
@@ -41,7 +55,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // Get specific sentence by ID
   const { id } = await req.json()
   const { data, error } = await supabase
     .from('sentences')

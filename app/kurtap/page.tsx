@@ -27,6 +27,7 @@ export default function KurtapRecorderPage() {
   const [recordingTime, setRecordingTime] = useState(0)
   const [loading, setLoading] = useState(false)
   const [skipped, setSkipped] = useState(0)
+  const [skippedIds, setSkippedIds] = useState<number[]>([])
 
   const audioCtxRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
@@ -36,7 +37,7 @@ export default function KurtapRecorderPage() {
   const startTimeRef = useRef<number>(0)
   const streamRef = useRef<MediaStream | null>(null)
 
-  const fetchNextSentence = useCallback(async (spk: string) => {
+  const fetchNextSentence = useCallback(async (spk: string, skipIds: number[] = []) => {
     setLoading(true)
     setError(null)
     setTranslatedText('')
@@ -45,7 +46,8 @@ export default function KurtapRecorderPage() {
     setRecordingTime(0)
     setPhase('idle')
     try {
-      const res = await fetch(`/api/kurtap/sentences?speaker=${encodeURIComponent(spk)}`)
+      const skipParam = skipIds.length > 0 ? `&skip_ids=${skipIds.join(',')}` : ''
+      const res = await fetch(`/api/kurtap/sentences?speaker=${encodeURIComponent(spk)}${skipParam}`)
       const data = await res.json()
       if (data.done) {
         setSentence(null)
@@ -204,15 +206,21 @@ export default function KurtapRecorderPage() {
   }
 
   const skip = () => {
+    if (!sentence) return
+    const newSkippedIds = [...skippedIds, sentence.id]
+    setSkippedIds(newSkippedIds)
+    localStorage.setItem('kurtap_skipped_ids', JSON.stringify(newSkippedIds))
     setSkipped((s) => s + 1)
-    fetchNextSentence(speaker)
+    fetchNextSentence(speaker, newSkippedIds)
   }
 
   const logout = () => {
     localStorage.removeItem('kurtap_speaker')
+    localStorage.removeItem('kurtap_skipped_ids')
     setSpeaker('')
     setSpeakerInput('')
     setSentence(null)
+    setSkippedIds([])
   }
 
   useEffect(() => {
@@ -232,10 +240,12 @@ export default function KurtapRecorderPage() {
 
   useEffect(() => {
     const savedSpeaker = localStorage.getItem('kurtap_speaker')
+    const savedSkippedIds: number[] = JSON.parse(localStorage.getItem('kurtap_skipped_ids') || '[]')
+    setSkippedIds(savedSkippedIds)
     if (savedSpeaker) {
       setSpeaker(savedSpeaker)
       setSpeakerInput(savedSpeaker)
-      fetchNextSentence(savedSpeaker)
+      fetchNextSentence(savedSpeaker, savedSkippedIds)
       fetchCount(savedSpeaker)
     }
   }, [fetchNextSentence, fetchCount])
