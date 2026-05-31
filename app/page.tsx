@@ -306,6 +306,35 @@ export default function RecorderPage() {
     }
   }, [])
 
+  // Restore session from localStorage on mount
+  useEffect(() => {
+    const savedSelector = localStorage.getItem('dzo_showSelector')
+    const savedSpeaker = localStorage.getItem('dzo_speaker')
+    if (savedSelector === 'false') {
+      setShowSelector(false)
+      if (savedSpeaker) {
+        setSpeaker(savedSpeaker)
+        setSpeakerInput(savedSpeaker)
+        fetchNextSentence(savedSpeaker)
+        fetchCount(savedSpeaker)
+      }
+    }
+  }, [fetchNextSentence, fetchCount])
+
+  // Persist showSelector
+  useEffect(() => {
+    localStorage.setItem('dzo_showSelector', String(showSelector))
+  }, [showSelector])
+
+  // Persist speaker name
+  useEffect(() => {
+    if (speaker) {
+      localStorage.setItem('dzo_speaker', speaker)
+    } else {
+      localStorage.removeItem('dzo_speaker')
+    }
+  }, [speaker])
+
   if (showSelector) {
     return <LanguageSelector onSelectDzongkha={() => setShowSelector(false)} />
   }
